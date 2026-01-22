@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Slime Drop</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #fce4ec; font-family: sans-serif; touch-action: none; }
+        #ad-top, #ad-bottom { position: fixed; left: 0; width: 100%; height: 110px; background: #333; z-index: 100; display: flex; align-items: center; justify-content: center; }
+        #ad-top { top: 0; } #ad-bottom { bottom: 0; }
+        iframe { border: none; width: 100%; height: 110px; }
+        canvas { display: block; margin-top: 110px; background: #f8bbd0; }
+        #startScreen { position: absolute; top: 110px; left: 0; width: 100%; height: calc(100vh - 220px); background: rgba(255,255,255,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; }
+        #goButton { padding: 15px 40px; font-size: 24px; background: #d81b60; border: none; border-radius: 50px; color: white; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="ad-top"><iframe id="frame-top" src="ad.html"></iframe></div>
+    <div id="ad-bottom"><iframe id="frame-bottom" src="ad.html"></iframe></div>
+    
+    <div id="startScreen">
+        <h1 style="color:#d81b60;">SLIME DROP</h1>
+        <p>画面タップでスライムを落とせ！</p>
+        <button id="goButton">START</button>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas"); const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight - 220;
+        
+        let score = 0, slimes = [], gameActive = false;
+        let bucket = { x: 0, w: 80, h: 40, speed: 3, dir: 1 };
+
+        document.getElementById("goButton").onclick = () => {
+            startScreen.style.display = "none"; gameActive = true;
+            score = 0; slimes = []; update();
+        };
+
+        // タップでスライムを投下
+        window.addEventListener("pointerdown", () => {
+            if(!gameActive) return;
+            slimes.push({ x: Math.random() * (canvas.width - 40) + 20, y: 0, r: 15, vy: 5 });
+        });
+
+        function update() {
+            if(!gameActive) return;
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+
+            // バケツの移動
+            bucket.x += bucket.speed * bucket.dir;
+            if(bucket.x + bucket.w > canvas.width || bucket.x < 0) bucket.dir *= -1;
+            ctx.fillStyle = "#880e4f";
+            ctx.fillRect(bucket.x, canvas.height - 50, bucket.w, bucket.h);
+
+            // スライムの処理
+            for(let i = slimes.length - 1; i >= 0; i--) {
+                let s = slimes[i];
+                s.y += s.vy;
+                ctx.fillStyle = "#f06292";
+                ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
+
+                // キャッチ判定
+                if(s.y + s.r > canvas.height - 50 && s.x > bucket.x && s.x < bucket.x + bucket.w) {
+                    slimes.splice(i, 1);
+                    score++;
+                    bucket.speed = 3 + (score * 0.2); // だんだん速くなる
+                } 
+                // 落下判定（ゲームオーバー）
+                else if(s.y > canvas.height) {
+                    gameActive = false;
+                    alert("GAME OVER! SCORE: " + score);
+                    location.reload();
+                }
+            }
+
+            ctx.fillStyle = "black"; ctx.font = "bold 20px Arial";
+            ctx.fillText("SCORE: " + score, 20, 35);
+            requestAnimationFrame(update);
+        }
+
+        // 🔥 30.0秒 強制転生プログラム
+        setInterval(() => {
+            ["frame-top", "frame-bottom"].forEach(id => {
+                const frame = document.getElementById(id);
+                if (frame) {
+                    const currentSrc = frame.src;
+                    frame.src = "about:blank";
+                    setTimeout(() => { frame.src = currentSrc; }, 100);
+                }
+            });
+        }, 30000);
+    </script>
+</body>
+</html>
