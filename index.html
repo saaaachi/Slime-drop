@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Slime Drop</title>
+    <title>Slime Drop Precision</title>
     <style>
         body { margin: 0; overflow: hidden; background: #fce4ec; font-family: sans-serif; touch-action: none; }
         #ad-top, #ad-bottom { position: fixed; left: 0; width: 100%; height: 110px; background: #333; z-index: 100; display: flex; align-items: center; justify-content: center; }
@@ -19,7 +19,7 @@
     
     <div id="startScreen">
         <h1 style="color:#d81b60;">SLIME DROP</h1>
-        <p>画面タップでスライムを落とせ！</p>
+        <p>動くスライムをタップで落として、<br>バケツでキャッチしよう！</p>
         <button id="goButton">START</button>
     </div>
     
@@ -28,57 +28,68 @@
         const canvas = document.getElementById("gameCanvas"); const ctx = canvas.getContext("2d");
         canvas.width = window.innerWidth; canvas.height = window.innerHeight - 220;
         
-        let score = 0, slimes = [], gameActive = false;
-        let bucket = { x: 0, w: 80, h: 40, speed: 3, dir: 1 };
+        let score = 0, fallingSlimes = [], gameActive = false;
+        let bucket = { x: 0, w: 90, h: 40, speed: 3, dir: 1 };
+        let aimSlime = { x: 0, y: 30, speed: 5, dir: 1 }; // 狙う用のスライム
 
         document.getElementById("goButton").onclick = () => {
             startScreen.style.display = "none"; gameActive = true;
-            score = 0; slimes = []; update();
+            score = 0; fallingSlimes = []; update();
         };
 
-        // タップでスライムを投下
+        // タップで現在位置から落とす！
         window.addEventListener("pointerdown", () => {
             if(!gameActive) return;
-            slimes.push({ x: Math.random() * (canvas.width - 40) + 20, y: 0, r: 15, vy: 5 });
+            // 同時に落とせるのは3つまでに制限（連打でのゲームオーバー防止）
+            if(fallingSlimes.length < 3) {
+                fallingSlimes.push({ x: aimSlime.x, y: aimSlime.y, r: 15, vy: 7 });
+            }
         });
 
         function update() {
             if(!gameActive) return;
             ctx.clearRect(0,0,canvas.width,canvas.height);
 
-            // バケツの移動
+            // 1. 上のスライム（狙う用）を動かす
+            aimSlime.x += aimSlime.speed * aimSlime.dir;
+            if(aimSlime.x > canvas.width - 20 || aimSlime.x < 20) aimSlime.dir *= -1;
+            ctx.fillStyle = "rgba(240, 98, 146, 0.5)"; // 狙い用は少し透明
+            ctx.beginPath(); ctx.arc(aimSlime.x, aimSlime.y, 15, 0, Math.PI*2); ctx.fill();
+
+            // 2. 下のバケツを動かす
             bucket.x += bucket.speed * bucket.dir;
             if(bucket.x + bucket.w > canvas.width || bucket.x < 0) bucket.dir *= -1;
             ctx.fillStyle = "#880e4f";
             ctx.fillRect(bucket.x, canvas.height - 50, bucket.w, bucket.h);
 
-            // スライムの処理
-            for(let i = slimes.length - 1; i >= 0; i--) {
-                let s = slimes[i];
+            // 3. 落ちているスライムの処理
+            for(let i = fallingSlimes.length - 1; i >= 0; i--) {
+                let s = fallingSlimes[i];
                 s.y += s.vy;
                 ctx.fillStyle = "#f06292";
                 ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
 
                 // キャッチ判定
                 if(s.y + s.r > canvas.height - 50 && s.x > bucket.x && s.x < bucket.x + bucket.w) {
-                    slimes.splice(i, 1);
+                    fallingSlimes.splice(i, 1);
                     score++;
-                    bucket.speed = 3 + (score * 0.2); // だんだん速くなる
+                    bucket.speed = 3 + (score * 0.3); // バケツが速くなる
+                    aimSlime.speed = 5 + (score * 0.2); // 上のスライムも速くなる
                 } 
-                // 落下判定（ゲームオーバー）
+                // 落下判定
                 else if(s.y > canvas.height) {
                     gameActive = false;
-                    alert("GAME OVER! SCORE: " + score);
+                    alert("GAME OVER!\nSCORE: " + score);
                     location.reload();
                 }
             }
 
-            ctx.fillStyle = "black"; ctx.font = "bold 20px Arial";
-            ctx.fillText("SCORE: " + score, 20, 35);
+            ctx.fillStyle = "black"; ctx.font = "bold 22px Arial";
+            ctx.fillText("SCORE: " + score, 20, 70);
             requestAnimationFrame(update);
         }
 
-        // 🔥 30.0秒 強制転生プログラム
+        // 🚀 30秒 強制リフレッシュ
         setInterval(() => {
             ["frame-top", "frame-bottom"].forEach(id => {
                 const frame = document.getElementById(id);
@@ -88,7 +99,7 @@
                     setTimeout(() => { frame.src = currentSrc; }, 100);
                 }
             });
-        }, 30000);
+        }, 28000);
     </script>
 </body>
 </html>
