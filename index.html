@@ -1,48 +1,110 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Slime Drop Fix</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #fce4ec; font-family: sans-serif; touch-action: none; }
-        #ad-top, #ad-bottom { position: fixed; left: 0; width: 100%; height: 110px; background: #333; z-index: 100; display: flex; align-items: center; justify-content: center; }
-        #ad-top { top: 0; } #ad-bottom { bottom: 0; }
-        iframe { border: none; width: 100%; height: 110px; }
-        canvas { display: block; margin-top: 110px; background: #f8bbd0; }
-        #startScreen { position: absolute; top: 110px; left: 0; width: 100%; height: calc(100vh - 220px); background: rgba(255,255,255,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; }
-        #goButton { padding: 15px 40px; font-size: 24px; background: #d81b60; border: none; border-radius: 50px; color: white; font-weight: bold; }
+        body { 
+            margin: 0; height: 100vh; display: flex; flex-direction: column; 
+            background: #fce4ec; font-family: sans-serif; overflow: hidden; touch-action: none; 
+        }
+        
+        #ad-top, #ad-bottom { 
+            width: 100%; height: 110px; background: #333; 
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0; z-index: 100;
+        }
+        iframe { border: none; width: 100%; height: 100%; }
+
+        #game-area { 
+            flex-grow: 1; position: relative; width: 100%; background: #f8bbd0; overflow: hidden; 
+        }
+        
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        #menuScreen { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(255,255,255,0.95); display: flex; flex-direction: column; 
+            align-items: center; justify-content: space-between; z-index: 200; padding: 10px 0; box-sizing: border-box;
+        }
+
+        #ad-middle-container { 
+            width: 300px; height: 250px; background: #ddd;
+            display: none; justify-content: center; align-items: center; 
+            overflow: hidden; flex-shrink: 0; border: 1px solid #ccc;
+        }
+        
+        .btn-group { 
+            display: flex; flex-direction: column; align-items: center; gap: 8px; 
+            width: 100%; padding-bottom: 5px; 
+        }
+        .menu-btn { padding: 12px 30px; font-size: 17px; border: none; border-radius: 50px; color: white; font-weight: bold; cursor: pointer; text-decoration: none; width: 220px; text-align: center; }
+        #goButton { background: #d81b60; box-shadow: 0 4px #ad1457; }
+        .link-btn { background: #ff4081; box-shadow: 0 4px #c2185b; }
+        .best-info { color: #d81b60; font-size: 18px; font-weight: bold; margin: 2px 0; }
     </style>
 </head>
 <body>
-    <div id="ad-top"><iframe id="frame-top" src="ad.html"></iframe></div>
-    <div id="ad-bottom"><iframe id="frame-bottom" src="ad.html"></iframe></div>
-    
-    <div id="startScreen">
-        <h1 style="color:#d81b60;">SLIME DROP</h1>
-        <p>タイミングよくタップして<br>バケツにスライムを入れよう！</p>
-        <button id="goButton">START</button>
-    </div>
-    
-    <canvas id="gameCanvas"></canvas>
-    <script>
-        const canvas = document.getElementById("gameCanvas"); const ctx = canvas.getContext("2d");
-        canvas.width = window.innerWidth; canvas.height = window.innerHeight - 220;
-        
-        let score = 0, fallingSlimes = [], gameActive = false;
-        let bucket = { x: 0, w: 100, h: 25, speed: 3.5, dir: 1 }; // バケツを少し横長に
-        let aimSlime = { x: canvas.width/2, y: 40, speed: 5, dir: 1 }; 
+    <div id="ad-top"><iframe src="ad.html"></iframe></div>
 
-        document.getElementById("goButton").onclick = () => {
-            startScreen.style.display = "none"; gameActive = true;
-            score = 0; fallingSlimes = []; 
+    <div id="game-area">
+        <div id="menuScreen">
+            <div style="text-align:center;">
+                <h1 id="menuTitle" style="color:#d81b60; margin:0; font-size: 24px;">SLIME DROP</h1>
+                <p id="menuMsg" style="margin:2px 0; font-size:14px;">バケツを狙ってタップ！</p>
+                <div class="best-info">BEST SCORE: <span id="best-ui">0</span></div>
+            </div>
+
+            <div id="ad-middle-container">
+                <script src="https://adm.shinobi.jp/s/1e6de436ea850948e238e975a93767eb"></script>
+            </div>
+
+            <div class="btn-group" id="btnGroup">
+                <button id="goButton" class="menu-btn">GAME START</button>
+                <a href="https://saaaachi.github.io/Slime-Snake/" class="menu-btn link-btn">他のゲームはこちら</a>
+            </div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div id="ad-bottom"><iframe src="ad.html"></iframe></div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas"), ctx = canvas.getContext("2d"),
+              menuScreen = document.getElementById("menuScreen"), menuTitle = document.getElementById("menuTitle"),
+              menuMsg = document.getElementById("menuMsg"), bestUi = document.getElementById("best-ui"),
+              goButton = document.getElementById("goButton"), adMid = document.getElementById("ad-middle-container"),
+              btnGroup = document.getElementById("btnGroup");
+
+        let score = 0, bestScore = localStorage.getItem("slime_drop_best") || 0, fallingSlimes = [], gameActive = false;
+        let bucket = { x: 0, w: 100, h: 25, speed: 3.5, dir: 1 };
+        let aimSlime = { x: 0, y: 40, speed: 5, dir: 1 }; 
+
+        function resize() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            aimSlime.x = canvas.width / 2;
+        }
+        window.onload = () => { resize(); bestUi.innerText = bestScore; adMid.style.display = "none"; };
+        window.onresize = resize;
+
+        goButton.onclick = () => {
+            menuScreen.style.display = "none";
+            adMid.style.display = "none";
+            gameActive = true;
+            score = 0;
+            fallingSlimes = [];
             bucket.x = 0; bucket.speed = 3.5;
-            aimSlime.x = canvas.width/2; aimSlime.speed = 5;
+            aimSlime.speed = 5;
             update();
         };
 
-        window.addEventListener("pointerdown", () => {
+        window.addEventListener("pointerdown", (e) => {
             if(!gameActive) return;
-            if(fallingSlimes.length < 2) { // 画面上の混乱を防ぐため
+            // メニューが開いている間は発射しない
+            if(menuScreen.style.display !== "none") return;
+            
+            if(fallingSlimes.length < 2) {
                 fallingSlimes.push({ x: aimSlime.x, y: aimSlime.y, r: 15, vy: 8 });
             }
         });
@@ -51,32 +113,27 @@
             if(!gameActive) return;
             ctx.clearRect(0,0,canvas.width,canvas.height);
 
-            // 1. 上のスライム（狙う用）の移動
+            // 狙いスライム
             aimSlime.x += aimSlime.speed * aimSlime.dir;
             if(aimSlime.x > canvas.width - 20) { aimSlime.x = canvas.width - 20; aimSlime.dir = -1; }
             if(aimSlime.x < 20) { aimSlime.x = 20; aimSlime.dir = 1; }
-            
             ctx.fillStyle = "rgba(240, 98, 146, 0.6)";
             ctx.beginPath(); ctx.arc(aimSlime.x, aimSlime.y, 15, 0, Math.PI*2); ctx.fill();
 
-            // 2. 下のバケツの移動
+            // バケツ
             bucket.x += bucket.speed * bucket.dir;
             if(bucket.x + bucket.w > canvas.width) { bucket.x = canvas.width - bucket.w; bucket.dir = -1; }
             if(bucket.x < 0) { bucket.x = 0; bucket.dir = 1; }
-            
             ctx.fillStyle = "#880e4f";
-            // 座標をキャンバスの底からしっかり計算
             ctx.fillRect(bucket.x, canvas.height - 40, bucket.w, bucket.h);
 
-            // 3. 落ちているスライムの処理
+            // 落下スライム
             for(let i = fallingSlimes.length - 1; i >= 0; i--) {
                 let s = fallingSlimes[i];
                 s.y += s.vy;
-                
                 ctx.fillStyle = "#f06292";
                 ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
 
-                // キャッチ判定（高さと横幅をしっかりチェック）
                 if(s.y + s.r > canvas.height - 40 && s.y < canvas.height - 10) {
                     if(s.x > bucket.x && s.x < bucket.x + bucket.w) {
                         fallingSlimes.splice(i, 1);
@@ -87,29 +144,44 @@
                     }
                 } 
                 
-                // 落下判定（画面外へ）
                 if(s.y > canvas.height) {
-                    gameActive = false;
-                    alert("GAME OVER!\nSCORE: " + score);
-                    location.reload();
+                    gameOver();
                     return;
                 }
             }
 
-            ctx.fillStyle = "black"; ctx.font = "bold 24px Arial";
+            ctx.fillStyle = "#d81b60"; ctx.font = "bold 22px sans-serif";
+            ctx.textAlign = "left";
             ctx.fillText("SCORE: " + score, 20, 85);
             requestAnimationFrame(update);
         }
 
-        // 🚀 30秒 強制転生
+        function gameOver() {
+            gameActive = false;
+            if(score > bestScore) {
+                bestScore = score;
+                localStorage.setItem("slime_drop_best", bestScore);
+                bestUi.innerText = bestScore;
+            }
+            menuTitle.innerText = "GAME OVER";
+            menuTitle.style.color = "#f44336";
+            menuMsg.innerText = "SCORE: " + score;
+            goButton.innerText = "RETRY";
+            
+            btnGroup.style.opacity = "0";
+            btnGroup.style.pointerEvents = "none";
+            adMid.style.display = "flex"; 
+            menuScreen.style.display = "flex";
+
+            setTimeout(() => {
+                btnGroup.style.opacity = "1";
+                btnGroup.style.pointerEvents = "auto";
+            }, 600);
+        }
+
         setInterval(() => {
-            ["frame-top", "frame-bottom"].forEach(id => {
-                const frame = document.getElementById(id);
-                if (frame) {
-                    const currentSrc = frame.src;
-                    frame.src = "about:blank";
-                    setTimeout(() => { frame.src = currentSrc; }, 100);
-                }
+            document.querySelectorAll('iframe').forEach(f => {
+                const s = f.src; f.src = "about:blank"; setTimeout(() => f.src = s, 100);
             });
         }, 30000);
     </script>
